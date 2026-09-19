@@ -962,6 +962,31 @@ sakura_term_buttonreleased_cb (GtkWidget *widget, GdkEventButton *button_event, 
 }
 
 
+static void 
+sakura_scrollbar_visibility_cb (GtkAdjustment *adjustment, gpointer user_data) 
+{
+	GtkWidget *scrollbar = GTK_WIDGET(user_data);
+
+	/* Respect the user's global preference if they disabled the scrollbar entirely */
+	if (!sakura.show_scrollbar) {
+		gtk_widget_hide(scrollbar);
+		return;
+	}
+
+	gdouble upper = gtk_adjustment_get_upper(adjustment);
+	gdouble lower = gtk_adjustment_get_lower(adjustment);
+	gdouble page_size = gtk_adjustment_get_page_size(adjustment);
+
+	/* Show scrollbar only if the buffer is larger than the visible window */
+	if (upper - lower > page_size) {
+		gtk_widget_show(scrollbar);
+	} else {
+		gtk_widget_hide(scrollbar);
+	}
+}
+
+
+
 static gboolean
 sakura_term_buttonpressed_cb (GtkWidget *widget, GdkEventButton *button_event, gpointer user_data)
 {
@@ -3083,6 +3108,12 @@ sakura_add_tab()
 
 	/* -1 if there is no pages yet */
 	page = gtk_notebook_get_current_page(GTK_NOTEBOOK(sakura.notebook));
+
+	/* Inside sakura_add_tab() after sk_tab->vte and sk_tab->scrollbar are created */
+	GtkAdjustment *vadjustment = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(sk_tab->vte));
+
+	g_signal_connect(G_OBJECT(vadjustment), "changed", 
+					G_CALLBACK(sakura_scrollbar_visibility_cb), sk_tab->scrollbar);
 
 	/* Use previous terminal (if there is one) cwd and colorset */
 	if (page >= 0) {
